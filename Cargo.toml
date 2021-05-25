@@ -1,0 +1,30 @@
+[package]
+name = "network"
+version = "0.2.0"
+authors = ["Rivtower Technologies <anhuitianyu@163.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+log4rs = { version = "1", features = ["gzip"] }
+clap = "3.0.0-beta.2"
+git-version = "0.3"
+toml = "0.5.8"
+serde = { version = "1", features = ["derive"] }
+tonic = "0.4"
+prost = "0.7"
+futures = "0.3"
+tokio = "1.5"
+cita_cloud_proto = { git = "https://github.com/cita-cloud/cita_cloud_proto",brnach = "develop" }
+tokio-stream = { version = "0.1.5", features = ["net"] }
+anyhow = "1.0"
+
+[profile.release.package."*"]
+# Set the default for dependencies.
+debug = 0
+
+[profile.release]
+# Add debug info -- line tables only
+debug = 1
