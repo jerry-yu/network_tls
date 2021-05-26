@@ -11,24 +11,28 @@ use tokio::net::tcp::WriteHalf;
 
 use std::net::SocketAddr;
 use std::collections::BTreeMap;
-
 use tokio_stream::wrappers::TcpListenerStream;
 use tokio_stream::StreamExt;
 use anyhow::Result;
+use tokio::sync::oneshot;
+
+pub type SessionID = u64;
+
 #[derive(Debug)]
 pub enum CommomNetMsg {
-    SendMessage(u64,Vec<u8>),
-    ConnInfo(u64,String),
-    GetMessage(u64,Vec<u8>),
+    SendMessage(SessionID,Vec<u8>),
+    ConnInfo(SessionID,String),
+    NetRecvMesage(SessionID,Vec<u8>),
+    ToConnect(String),
+    GetPeerCount(oneshot::Sender::<u64>)
 } 
 
 #[derive(Debug)]
 pub struct CommonNetwork {
     listen_addr : String,
-    net_receiver: UnboundedReceiver<CommomNetMsg>,
     net_sender: UnboundedSender<CommomNetMsg>,
-    session_id: u64,
-    cons : BTreeMap<u64,OwnedWriteHalf>,
+    net_receiver: UnboundedReceiver<CommomNetMsg>,
+    cons : BTreeMap<SessionID,OwnedWriteHalf>,
 }
 
 pub (crate) async fn read_net_and_send(session_id:u64,
@@ -38,26 +42,37 @@ pub (crate) async fn read_net_and_send(session_id:u64,
     let mut buffer = Vec::new();
     let _ = reader.read_exact(&mut buffer[..]).await?;
 
-    net_sender.send(CommomNetMsg::GetMessage(session_id,buffer))?;
+    net_sender.send(CommomNetMsg::NetRecvMesage(session_id,buffer))?;
 
     Ok(())
 }
 
 impl CommonNetwork {
-    pub async fn run(&mut self,addr : SocketAddr) -> Result<()> {
+    pub fn new(listen_addr : String, net_sender: UnboundedSender<CommomNetMsg>,net_receiver: UnboundedReceiver<CommomNetMsg>) -> CommonNetwork {
+        CommonNetwork {
+            listen_addr,
+            net_sender,
+            net_receiver,
+            cons : BTreeMap::new(),
+        }
+    }
+
+
+    pub async fn run(&mut self) -> Result<()> {
+        let addr:SocketAddr = self.listen_addr.parse().unwrap();
         let mut listener = TcpListener::bind(addr).await?;
+        let mut session_id :SessionID = 1;
 
         tokio::select! {
             con = listener.accept() => {
                 if let Ok((mut con,_)) = con {
                     let (reader,writer) = con.into_split();
-                    self.cons.insert(self.session_id, writer);
-                    self.session_id +=1;
+                    self.cons.insert(session_id, writer);
+                    session_id +=1;
 
-                    tokio::spawn(read_net_and_send(self.session_id,reader,self.net_sender.clone()));
+                    tokio::spawn(read_net_and_send(session_id,reader,self.net_sender.clone()));
 
                 }
-                
             },
             msg = self.net_receiver.recv() => {
 
