@@ -13,14 +13,34 @@
 // limitations under the License.
 
 mod config;
+mod controller;
+mod network;
 mod rpc_client;
 mod rpc_server;
-mod network;
 
 use clap::Clap;
+use config::NetConfig;
 use git_version::git_version;
 use log::{debug, info, warn};
+use prost::Message;
+use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::time::interval;
+
+use cita_cloud_proto::common::Empty;
+use cita_cloud_proto::common::SimpleResponse;
+use cita_cloud_proto::network::network_msg_handler_service_client::NetworkMsgHandlerServiceClient;
+use cita_cloud_proto::network::{
+    network_service_server::NetworkService, network_service_server::NetworkServiceServer,
+    NetworkMsg, NetworkStatusResponse, RegisterInfo,
+};
+use tonic::{transport::Server, Request, Response, Status};
 
 const GIT_VERSION: &str = git_version!(
     args = ["--tags", "--always", "--dirty=-modified"],
@@ -73,39 +93,18 @@ fn main() {
             // init log4rs
             log4rs::init_file("network-log4rs.yaml", Default::default()).unwrap();
             info!("grpc port of this service: {}", opts.grpc_port);
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(run(opts));
+            run(opts);
         }
     }
 }
 
-use config::NetConfig;
-use prost::Message;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::unbounded_channel;
-use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::time::interval;
-
-use cita_cloud_proto::common::Empty;
-use cita_cloud_proto::common::SimpleResponse;
-use cita_cloud_proto::network::network_msg_handler_service_client::NetworkMsgHandlerServiceClient;
-use cita_cloud_proto::network::{
-    network_service_server::NetworkService, network_service_server::NetworkServiceServer,
-    NetworkMsg, NetworkStatusResponse, RegisterInfo,
-};
-use tonic::{transport::Server, Request, Response, Status};
-
-
+#[tokio::main]
 async fn run(opts: RunOpts) {
     let path = "network-config.toml";
     let buffer = std::fs::read_to_string(path)
         .unwrap_or_else(|err| panic!("Error while loading config: [{}]", err));
     let config = NetConfig::new(&buffer);
-    let listen_addr :String  = format!("0.0.0.0:{}", config.port);
+    let listen_addr: String = format!("0.0.0.0:{}", config.port);
     let peers: Vec<String> = config
         .peers
         .into_iter()
@@ -113,19 +112,20 @@ async fn run(opts: RunOpts) {
         .collect();
 
     let (to_net_tx, to_net_rx) = unbounded_channel();
-    let (from_net_tx, from_net_rx) = unbounded_channel();
 
-    let mut net_op = network::CommonNetwork::new(listen_addr, to_net_tx.clone(),from_net_rx);
-   
-    let (to_rpc_cli_tx,to_rpc_cli_rx) = unbounded_channel();
-
+    let (to_rpc_cli_tx, to_rpc_cli_rx) = unbounded_channel();
+    let (ctl_to_net_tx, ctl_to_net_rx) = unbounded_channel();
+    let mut net_op =
+        network::CommonNetwork::new(listen_addr, to_rpc_cli_tx.clone(), to_net_rx, ctl_to_net_tx);
     tokio::spawn(rpc_client::RpcClient::run(to_rpc_cli_rx));
 
-    //let (to_rpc_serv_tx,to_rpc_serv_rx) = unbounded_channel();
+    tokio::spawn(rpc_server::RpcServer::run(
+        to_net_tx,
+        to_rpc_cli_tx,
+        opts.grpc_port,
+    ));
 
-    tokio::spawn( rpc_server::RpcServer::run(to_net_tx, to_rpc_cli_tx,opts.grpc_port) );
-   
-    net_op.run().await;
+    let _ = net_op.run().await;
 }
 
 // async fn keep_connection(peers: Vec<String>, net_event_sender: mpsc::Sender<NetEvent>) {
@@ -138,7 +138,6 @@ async fn run(opts: RunOpts) {
 //         }
 //     }
 // }
-
 
 // async fn dispatch_network_msg(
 //     client_map: Arc<
