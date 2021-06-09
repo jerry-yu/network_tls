@@ -20,6 +20,7 @@ tokio = "1.5"
 cita_cloud_proto = { git = "https://github.com/cita-cloud/cita_cloud_proto",branch = "develop" }
 tokio-stream = { version = "0.1.5", features = ["net"] }
 anyhow = "1.0"
+rand = "0.8"
 
 [profile.release.package."*"]
 # Set the default for dependencies.

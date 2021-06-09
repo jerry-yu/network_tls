@@ -25,34 +25,6 @@ use cita_cloud_proto::network::{
 use log::{debug, warn};
 use tonic::{transport::Server, Request, Response, Status};
 
-// #[derive(Debug)]
-// pub enum CommomNetMsg {
-//     SessionOpen {
-//         peer_addr: Option<String>,
-//         conn: TcpStream,
-//     },
-//     SessionClosed {
-//         session_id: u64,
-//     },
-//     MessageReceived {
-//         session_id: u64,
-//         data: Vec<u8>,
-//     },
-//     SendMessage {
-//         session_id: u64,
-//         data: Vec<u8>,
-//     },
-//     InboundConnection {
-//         conn: TcpStream,
-//     },
-//     OutboundConnection {
-//         addr: String,
-//     },
-//     BroadcastMessage {
-//         msg: Vec<u8>,
-//     },
-// }
-
 pub struct RpcServer {
     net_event_sender: UnboundedSender<CommomNetMsg>,
     to_rpc_cli_tx: UnboundedSender<RpcClientMsg>,

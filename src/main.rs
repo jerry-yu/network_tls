@@ -24,6 +24,7 @@ use git_version::git_version;
 use log::{debug, info, warn};
 use prost::Message;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
@@ -105,7 +106,7 @@ async fn run(opts: RunOpts) {
         .unwrap_or_else(|err| panic!("Error while loading config: [{}]", err));
     let config = NetConfig::new(&buffer);
     let listen_addr: String = format!("0.0.0.0:{}", config.port);
-    let peers: Vec<String> = config
+    let peers: HashSet<String> = config
         .peers
         .into_iter()
         .map(|peer| format!("{}:{}", peer.ip, peer.port))
@@ -114,16 +115,20 @@ async fn run(opts: RunOpts) {
     let (to_net_tx, to_net_rx) = unbounded_channel();
 
     let (to_rpc_cli_tx, to_rpc_cli_rx) = unbounded_channel();
-    let (ctl_to_net_tx, ctl_to_net_rx) = unbounded_channel();
+
+    let (net_to_ctl_tx, net_to_ctl_rx) = unbounded_channel();
+
     let mut net_op =
-        network::CommonNetwork::new(listen_addr, to_rpc_cli_tx.clone(), to_net_rx, ctl_to_net_tx);
+        network::CommonNetwork::new(listen_addr, to_rpc_cli_tx.clone(), to_net_rx, net_to_ctl_tx);
     tokio::spawn(rpc_client::RpcClient::run(to_rpc_cli_rx));
 
     tokio::spawn(rpc_server::RpcServer::run(
-        to_net_tx,
+        to_net_tx.clone(),
         to_rpc_cli_tx,
         opts.grpc_port,
     ));
+
+    let ctl = controller::Control::new(peers, net_to_ctl_rx, to_net_tx);
 
     let _ = net_op.run().await;
 }
