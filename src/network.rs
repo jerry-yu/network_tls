@@ -89,7 +89,6 @@ impl CommonNetwork {
         let addr: SocketAddr = self.listen_addr.parse().unwrap();
         let mut listener = TcpListener::bind(addr).await?;
         let mut session_id: SessionID = 1;
-        let mut peer_count: usize = 0;
         let mut cons = BTreeMap::new();
 
         loop {
@@ -98,46 +97,64 @@ impl CommonNetwork {
                     if let Ok((mut con,_)) = con {
                         let (term_tx,term_rx) = mpsc::channel(1);
                         let (reader,writer) = con.into_split();
+                        info!("accept get session id {}",session_id);
                         cons.insert(session_id, (writer,term_tx));
-                        session_id +=1;
-                        peer_count +=1;
                         tokio::spawn(read_net_and_send(session_id,reader,self.net_sender.clone(),self.ctl_sender.clone(),term_rx));
+                        let cmsg = ControlInfoMsg::Connected(session_id,String::new());
+                        self.ctl_sender.send(cmsg);
+                        session_id +=1;
                     }
                 },
                 msg = self.net_receiver.recv() => {
                     if let Some(msg) = msg {
                         match msg {
                             CommomNetMsg::SendMessage(sid,data) => {
-                                let mut err_flag =false;
-                                if let Some((writer,tx)) = cons.get_mut(&sid) {
-                                   if let Err(_) =  writer.write_all(&data).await {
+                                let mut err_sid = Vec::new();
+                                if sid == 0 {
+                                    for (id,(writer,tx)) in cons.iter_mut() {
+                                        if let Err(_) =  writer.write_all(&data).await {
+                                            tx.send(()).await;
+                                            err_sid.push(*id);
+                                       }
+                                    }
+                                } else if let Some((writer,tx)) = cons.get_mut(&sid) {
+                                    if let Err(_) =  writer.write_all(&data).await {
                                         tx.send(()).await;
-                                        err_flag = true;
+                                        err_sid.push(sid);
                                    }
                                 } else {
                                     info!("send message failed, id {} not found",sid);
                                 }
 
-                                if err_flag {
-                                    cons.remove(&sid);
+                                for i in err_sid {
+                                    cons.remove(&i);
                                 }
                             },
                             CommomNetMsg::ToConnect(url) => {
+                                info!("  ToConnect {}  ",url);
                                 if let Ok(con) = TcpStream::connect(url.clone()).await {
                                     let (term_tx,term_rx) = mpsc::channel(1);
                                     let (reader,writer) = con.into_split();
                                     cons.insert(session_id, (writer,term_tx));
+                                    tokio::spawn(read_net_and_send(session_id,reader,self.net_sender.clone(),self.ctl_sender.clone(),term_rx));
+                                    let cmsg = ControlInfoMsg::Connected(session_id,url);
+                                    self.ctl_sender.send(cmsg);
                                     session_id +=1;
+                                   
                                 } else {
                                     info!(" connect {} not ok ",url);
                                 }
                             }
                             CommomNetMsg::ToDisConnect(sid) => {
+                                info!(" ToDisConnect id {}",sid);
                                 if let Some((_,sender)) = cons.remove(&sid) {
                                     sender.send(()).await;
+                                   
                                 }
                             }
                             CommomNetMsg::GetPeerCount(tx) => {
+                                let peer_count = cons.len();
+                                info!(" GetPeerCount {}",peer_count);
                                 tx.send(peer_count as u64);
                             }
                         }

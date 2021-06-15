@@ -3,6 +3,7 @@ use rand;
 use std::collections::{BTreeMap, HashSet};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::timeout;
+use log::info;
 
 #[derive(Debug)]
 pub enum ControlInfoMsg {
@@ -31,27 +32,36 @@ impl Control {
         }
     }
 
-    pub async fn run(&mut self) {
-        for url in self.not_con_list.clone() {
-            self.ctl_tx.send(CommomNetMsg::ToConnect(url));
+    pub async fn run(not_con_list: HashSet<String>,
+        con_info_rx: UnboundedReceiver<ControlInfoMsg>,
+        ctl_tx: UnboundedSender<CommomNetMsg>,)
+     {
+         let mut ctl = Control::new(not_con_list,con_info_rx,ctl_tx);
+        for url in ctl.not_con_list.iter() {
+            ctl.ctl_tx.send(CommomNetMsg::ToConnect(url.clone()));
         }
+
         loop {
-            match timeout(std::time::Duration::from_secs(18), self.con_info_rx.recv()).await {
+            match timeout(std::time::Duration::from_secs(3), ctl.con_info_rx.recv()).await {
                 Ok(Some(msg)) => match msg {
+                    
                     ControlInfoMsg::Connected(sid, url) => {
-                        self.con_list.insert(sid, url.clone());
-                        self.not_con_list.remove(&url);
+                        info!("controller Connected {} {:?}",sid,url);
+                        ctl.con_list.insert(sid, url.clone());
+                        ctl.not_con_list.remove(&url);
                     }
                     ControlInfoMsg::DisConnected(sid) => {
-                        if let Some(url) = self.con_list.remove(&sid) {
-                            self.not_con_list.insert(url);
+                        info!("controller DisConnected {}",sid);
+                        if let Some(url) = ctl.con_list.remove(&sid) {
+                            ctl.not_con_list.insert(url);
                         }
                     }
                 },
 
-                Err(_) => {
-                    for url in self.not_con_list.clone() {
-                        self.ctl_tx.send(CommomNetMsg::ToConnect(url));
+                Err(e) => {
+                    info!("timeout -- {:?} ,list {:?}",e,ctl.not_con_list);
+                    for url in ctl.not_con_list.clone() {
+                        ctl.ctl_tx.send(CommomNetMsg::ToConnect(url));
                     }
                 }
                 _ => break,

@@ -47,7 +47,7 @@ const GIT_VERSION: &str = git_version!(
     args = ["--tags", "--always", "--dirty=-modified"],
     fallback = "unknown"
 );
-const GIT_HOMEPAGE: &str = "https://github.com/cita-cloud/network_direct";
+const GIT_HOMEPAGE: &str = "https://github.com/cita-cloud/network_tls";
 
 /// network service
 #[derive(Clap)]
@@ -111,6 +111,7 @@ async fn run(opts: RunOpts) {
         .into_iter()
         .map(|peer| format!("{}:{}", peer.ip, peer.port))
         .collect();
+    info!("----- peers {:?}",peers);
 
     let (to_net_tx, to_net_rx) = unbounded_channel();
 
@@ -128,8 +129,7 @@ async fn run(opts: RunOpts) {
         opts.grpc_port,
     ));
 
-    let ctl = controller::Control::new(peers, net_to_ctl_rx, to_net_tx);
-
+    tokio::spawn(controller::Control::run(peers, net_to_ctl_rx, to_net_tx));
     let _ = net_op.run().await;
 }
 

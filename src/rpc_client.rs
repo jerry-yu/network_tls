@@ -1,4 +1,4 @@
-use log::warn;
+use log::{info,warn};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -67,9 +67,11 @@ impl RpcClient {
                     match mod_clients.entry(mod_name.clone()) {
                         Entry::Occupied(mut o) => {
                             let _response = o.get_mut().process_network_msg(request).await;
+                            info!("process_network_msg {:?}",_response);
                         }
                         Entry::Vacant(v) => {
                             if let Some(dest_addr) = mod_infos.get(&mod_name) {
+                                info!("reconnect {} {}",mod_name,dest_addr);
                                 if let Ok(mut c) =
                                     NetworkMsgHandlerServiceClient::connect(dest_addr.to_owned())
                                         .await
