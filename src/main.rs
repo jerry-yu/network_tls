@@ -105,7 +105,7 @@ async fn run(opts: RunOpts) {
     let buffer = std::fs::read_to_string(path)
         .unwrap_or_else(|err| panic!("Error while loading config: [{}]", err));
     let config = NetConfig::new(&buffer);
-    let listen_addr: String = format!("0.0.0.0:{}", config.port);
+    let listen_addr: String = format!("/ip4/127.0.0.1/tcp/{}", config.port);
     let peers: HashSet<String> = config
         .peers
         .into_iter()
@@ -130,7 +130,7 @@ async fn run(opts: RunOpts) {
     ));
 
     tokio::spawn(controller::Control::run(peers, net_to_ctl_rx, to_net_tx));
-    let _ = net_op.run().await;
+    let _ = net_op.run2().await;
 }
 
 // async fn keep_connection(peers: Vec<String>, net_event_sender: mpsc::Sender<NetEvent>) {

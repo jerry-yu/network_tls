@@ -13,14 +13,15 @@ clap = "3.0.0-beta.2"
 git-version = "0.3"
 toml = "0.5.8"
 serde = { version = "1", features = ["derive"] }
-tonic = "0.4"
-prost = "0.7"
+tonic = "0.5"
+prost = "0.8"
 futures = "0.3"
 tokio = "1.5"
-cita_cloud_proto = { git = "https://github.com/cita-cloud/cita_cloud_proto",branch = "develop" }
-tokio-stream = { version = "0.1.5", features = ["net"] }
+cita_cloud_proto = { git = "https://github.com/cita-cloud/cita_cloud_proto",branch = "master" }
 anyhow = "1.0"
 rand = "0.8"
+libp2p = { version = "0.39", features = ["tcp-tokio"] }
+transfer = {path = "./transfer"}
 
 [profile.release.package."*"]
 # Set the default for dependencies.

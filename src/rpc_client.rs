@@ -12,10 +12,10 @@ use cita_cloud_proto::network::{
     network_service_server::NetworkService, network_service_server::NetworkServiceServer,
     NetworkMsg, NetworkStatusResponse, RegisterInfo,
 };
-use prost::Message;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
+use prost::Message;
 
 #[derive(Debug)]
 pub enum RpcClientMsg {

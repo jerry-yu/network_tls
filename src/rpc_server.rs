@@ -70,7 +70,7 @@ impl NetworkService for RpcServer {
         let msg = request.into_inner();
         let mut buf: Vec<u8> = Vec::new();
         if msg.encode(&mut buf).is_ok() {
-            let event = CommomNetMsg::SendMessage(msg.origin, buf);
+            let event = CommomNetMsg::SendMessage(msg.origin as usize, buf);
             if let Err(e) = self.net_event_sender.send(event) {
                 warn!("RpcServer send failed: `{}`", e);
             }
@@ -113,7 +113,7 @@ impl NetworkService for RpcServer {
             warn!("RpcServer get_network_status failed: `{}`", e);
         }
 
-        let peer_count = rx.await.unwrap_or(0);
+        let peer_count = rx.await.unwrap_or(0) as u64;
         let reply = NetworkStatusResponse { peer_count };
         Ok(Response::new(reply))
     }
