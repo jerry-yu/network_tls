@@ -1,12 +1,6 @@
 use log::{info,warn};
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::time::interval;
-
 use crate::network::SessionID;
-use cita_cloud_proto::common::Empty;
-use cita_cloud_proto::common::SimpleResponse;
 use cita_cloud_proto::network::network_msg_handler_service_client::NetworkMsgHandlerServiceClient;
 use cita_cloud_proto::network::{
     network_service_server::NetworkService, network_service_server::NetworkServiceServer,
@@ -14,7 +8,7 @@ use cita_cloud_proto::network::{
 };
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{ Request};
 use prost::Message;
 
 #[derive(Debug)]

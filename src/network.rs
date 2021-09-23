@@ -181,7 +181,7 @@ impl CommonNetwork {
    
         let transport = libp2p::development_transport(local_key).await?;
         let mut swarm = {
-            let mut behaviour = Transfer::new(TransferConfig::default());
+            let behaviour = Transfer::new(TransferConfig::default());
             SwarmBuilder::new(transport, behaviour, local_peer_id)
                 // We want the connection background tasks to be spawned
                 // onto the tokio runtime.
@@ -233,8 +233,6 @@ impl CommonNetwork {
                 // },
             }
          }
-
-        Ok(())
     }
 
 

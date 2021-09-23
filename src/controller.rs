@@ -1,5 +1,4 @@
 use crate::network::{CommomNetMsg, SessionID};
-use rand;
 use std::collections::{BTreeMap, HashSet};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::timeout;
@@ -38,7 +37,7 @@ impl Control {
      {
          let mut ctl = Control::new(not_con_list,con_info_rx,ctl_tx);
         for url in ctl.not_con_list.iter() {
-            ctl.ctl_tx.send(CommomNetMsg::ToConnect(url.clone()));
+            let _ = ctl.ctl_tx.send(CommomNetMsg::ToConnect(url.clone()));
         }
 
         loop {
@@ -61,7 +60,7 @@ impl Control {
                 Err(e) => {
                     info!("timeout -- {:?} ,list {:?}",e,ctl.not_con_list);
                     for url in ctl.not_con_list.clone() {
-                        ctl.ctl_tx.send(CommomNetMsg::ToConnect(url));
+                        let _ = ctl.ctl_tx.send(CommomNetMsg::ToConnect(url));
                     }
                 }
                 _ => break,

@@ -1,0 +1,11 @@
+[package]
+name = "transfer"
+version = "0.2.0"
+authors = ["Rivtower Technologies <anhuitianyu@163.com>"]
+edition = "2018"
+
+[dependencies]
+futures = "0.3"
+libp2p = { version = "0.39", features = ["tcp-tokio"] }
+fnv = "1.0.7"
+tokio = { version = "1.11",features = ["full"] }

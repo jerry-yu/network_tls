@@ -22,26 +22,8 @@ use clap::Clap;
 use config::NetConfig;
 use git_version::git_version;
 use log::{debug, info, warn};
-use prost::Message;
-use std::collections::HashMap;
 use std::collections::HashSet;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::unbounded_channel;
-use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::time::interval;
-
-use cita_cloud_proto::common::Empty;
-use cita_cloud_proto::common::SimpleResponse;
-use cita_cloud_proto::network::network_msg_handler_service_client::NetworkMsgHandlerServiceClient;
-use cita_cloud_proto::network::{
-    network_service_server::NetworkService, network_service_server::NetworkServiceServer,
-    NetworkMsg, NetworkStatusResponse, RegisterInfo,
-};
-use tonic::{transport::Server, Request, Response, Status};
 
 const GIT_VERSION: &str = git_version!(
     args = ["--tags", "--always", "--dirty=-modified"],

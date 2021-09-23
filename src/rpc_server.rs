@@ -1,23 +1,10 @@
-use crate::config::NetConfig;
-use prost::Message;
-use std::borrow::BorrowMut;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::net::TcpStream;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::unbounded_channel;
-use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::time::interval;
-
 use crate::network::CommomNetMsg;
 use crate::rpc_client::RpcClientMsg;
 use anyhow::Result;
 use cita_cloud_proto::common::Empty;
 use cita_cloud_proto::common::SimpleResponse;
-use cita_cloud_proto::network::network_msg_handler_service_client::NetworkMsgHandlerServiceClient;
+use prost::Message;
 use cita_cloud_proto::network::{
     network_service_server::NetworkService, network_service_server::NetworkServiceServer,
     NetworkMsg, NetworkStatusResponse, RegisterInfo,
@@ -129,7 +116,7 @@ impl NetworkService for RpcServer {
         let hostname = info.hostname;
         let port = info.port;
 
-        self.to_rpc_cli_tx
+        let _ = self.to_rpc_cli_tx
             .send(RpcClientMsg::ModPort(module_name, hostname, port));
 
         let reply = SimpleResponse { is_success: true };
